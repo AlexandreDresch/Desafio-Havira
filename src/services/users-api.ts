@@ -1,7 +1,11 @@
 import api from "./api";
 
 export async function getUsers(): Promise<User[]> {
-  const response = await api.get("/users");
-
-  return response.data;
+  try {
+    const response = await api.usersInstance.get("/users");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    throw new Error("Failed to fetch users");
+  }
 }
