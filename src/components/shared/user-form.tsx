@@ -3,19 +3,23 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useDispatch } from "react-redux";
-import { addUser } from "@/state/user-slice";
+import { addUser, updateUser } from "@/state/user-slice";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import CustomInput from "./custom-input";
-import { getGeoLocation } from "@/lib/utils";
+import { getGeolocation } from "@/services/geolocation-api";
 import { useToast } from "../ui/use-toast";
 import { useState } from "react";
 import Spinner from "./spinner";
 
 export default function UserForm({
+  user,
+  type,
   handleOpenModal,
 }: {
+  user?: User;
+  type: "create" | "update";
   handleOpenModal: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -24,61 +28,87 @@ export default function UserForm({
 
   const dispatch = useDispatch();
 
-  const form = useForm<z.infer<typeof userSchema>>({
-    resolver: zodResolver(userSchema),
-    defaultValues: {
-      name: "",
-      city: "",
-      email: "",
-      phone: "",
-      street: "",
-      number: "",
-      zipCode: "",
-    },
+  const formSchema = userSchema(type);
+
+  const defaultValues = {
+    name: user?.name || "",
+    city: user?.address.city || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    street: user?.address.street || "",
+    number: user?.address.suite || "",
+    zipCode: user?.address.zipcode || "",
+  };
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues,
   });
 
-  async function onSubmit(values: z.infer<typeof userSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const fullAddress = `${values.street}, ${values.number}, ${values.city}, ${values.zipCode}`;
+    try {
+      const fullAddress = `${values.street}, ${values.number}, ${values.city}, ${values.zipCode}`;
+      const geoLocation = await getGeolocation(fullAddress);
 
-    const geoLocation = await getGeoLocation(fullAddress);
+      if (!geoLocation) {
+        toast({
+          variant: "destructive",
+          title: "Algo deu errado!",
+          description:
+            "Não foi possível obter a geolocalização do endereço passado.",
+        });
+        return;
+      }
 
-    if (!geoLocation) {
+      const userToSubmit = createUser(values, geoLocation);
+
+      if (user) {
+        dispatch(updateUser(userToSubmit));
+        toast({
+          title: "Usuário atualizado com sucesso!",
+          description: "As informações do usuário foram atualizadas.",
+        });
+      } else {
+        dispatch(addUser(userToSubmit));
+        toast({
+          title: "Usuário adicionado com sucesso!",
+          description: "Você pode encontrá-lo na sua lista de usuários.",
+        });
+      }
+
+      handleOpenModal(false);
+    } catch (error) {
+      console.error("Error during form submission:", error);
       toast({
-        variant: "destructive",
         title: "Algo deu errado!",
-        description:
-          "Não foi possível obter a geolocalização do endereço passado.",
+        description: "Não foi possível adicionar o usuário à lista.",
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
+  }
 
-    dispatch(
-      addUser({
-        id: Date.now(),
-        name: values.name,
-        username: "",
-        company: { name: "", catchPhrase: "", bs: "" },
-        address: {
-          street: values.street,
-          suite: "",
-          city: values.city,
-          zipcode: values.zipCode,
-          geo: geoLocation,
-        },
-        phone: values.phone,
-        website: "",
-        email: values.email,
-      }),
-    );
-
-    toast({
-      title: "Usuário adicionado com sucesso!",
-      description: "Você pode encontrá-lo na sua lista de usuários.",
-    });
-
-    setIsLoading(false);
-    handleOpenModal(false);
+  function createUser(
+    values: z.infer<typeof formSchema>,
+    geoLocation: { lat: string; lng: string },
+  ) {
+    return {
+      id: user?.id || Date.now(),
+      name: values.name,
+      username: user?.username || "",
+      company: user?.company || { name: "", catchPhrase: "", bs: "" },
+      address: {
+        street: values.street,
+        suite: values.number,
+        city: values.city,
+        zipcode: values.zipCode,
+        geo: geoLocation,
+      },
+      phone: values.phone,
+      website: user?.website || "",
+      email: values.email,
+    };
   }
 
   return (
@@ -143,7 +173,11 @@ export default function UserForm({
           type="text"
         />
         <Button type="submit" disabled={isLoading} className="w-32">
-          {isLoading ? <Spinner className="size-4"/> : <span>Criar usuário</span>}
+          {isLoading ? (
+            <Spinner className="size-4" />
+          ) : (
+            <span>{user ? "Atualizar usuário" : "Criar usuário"}</span>
+          )}
         </Button>
       </form>
     </Form>

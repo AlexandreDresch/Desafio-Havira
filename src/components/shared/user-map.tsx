@@ -107,14 +107,14 @@ export default function UserMap() {
 
   return (
     <section className="relative flex h-[90%] gap-4">
-      <aside className="sticky left-0 top-0 flex h-full w-fit flex-col justify-between space-y-3 border-r border-gray-200 max-md:hidden sm:p-4 sm:pt-0 md:w-[455px]">
+      <aside className="sticky left-0 top-0 flex h-full w-fit flex-col justify-between space-y-3 border-r border-gray-200 max-md:hidden sm:p-4 sm:pt-0 md:w-[540px]">
         <div className="flex items-center gap-2">
           <Input
             onChange={(e) => handleQuery(e)}
             placeholder="Buscar usuário (Nome, Cidade, Email, Telefone)"
           />
         </div>
-        <ScrollArea className="h-[85%] w-full rounded-sm border px-3 py-1">
+        <ScrollArea className="h-[90%] w-full rounded-sm border px-3 py-1">
           {filteredUsers.length > 0 ? (
             filteredUsers.map((user) => (
               <UserCard
@@ -135,7 +135,7 @@ export default function UserMap() {
             Adicionar Usuário
           </DialogTrigger>
           <DialogContent>
-            <UserForm handleOpenModal={setOpenModal} />
+            <UserForm handleOpenModal={setOpenModal} type="create"/>
           </DialogContent>
         </Dialog>
       </aside>
@@ -173,7 +173,7 @@ export default function UserMap() {
               Adicionar Usuário
             </DialogTrigger>
             <DialogContent>
-              <UserForm handleOpenModal={setOpenModal} />
+              <UserForm handleOpenModal={setOpenModal} type="create"/>
             </DialogContent>
           </Dialog>
         </DrawerContent>
